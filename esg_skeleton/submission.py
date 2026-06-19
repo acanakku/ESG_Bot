@@ -1,9 +1,4 @@
-"""
-submission.py — полный цикл подачи ESG-идеи.
 
-Идеи сохраняются в ideas.json рядом со скриптом.
-Чтобы подключить реальную БД — замените функцию save_idea().
-"""
 from __future__ import annotations
 
 import json
@@ -23,10 +18,6 @@ router = Router()
 log = logging.getLogger(__name__)
 
 IDEAS_FILE = Path("ideas.json")
-
-# ──────────────────────────────────────────────
-# Хранилище (замените на БД по необходимости)
-# ──────────────────────────────────────────────
 
 def save_idea(user_id: int, data: dict) -> int:
     """Сохраняет идею в ideas.json и возвращает её порядковый номер."""
@@ -48,11 +39,6 @@ def save_idea(user_id: int, data: dict) -> int:
     IDEAS_FILE.write_text(json.dumps(ideas, ensure_ascii=False, indent=2), encoding="utf-8")
     log.info("Idea #%d saved from user %d", idea["id"], user_id)
     return idea["id"]
-
-
-# ──────────────────────────────────────────────
-# Вспомогательные функции
-# ──────────────────────────────────────────────
 
 def idea_preview(data: dict) -> str:
     cat_label = CATEGORY_LABELS.get(data.get("category", ""), data.get("category", "—"))
@@ -84,20 +70,12 @@ async def finish_or_edit(message: Message, state: FSMContext, next_state, next_p
     await message.answer(next_prompt, reply_markup=cancel_keyboard())
 
 
-# ──────────────────────────────────────────────
-# Отмена
-# ──────────────────────────────────────────────
-
 @router.message(StateFilter(IdeaForm), Command("cancel"))
 @router.message(StateFilter(IdeaForm), F.text == "❌ Отменить подачу")
 async def cancel_submission(message: Message, state: FSMContext) -> None:
     await state.clear()
     await message.answer("Подача отменена.", reply_markup=main_menu())
 
-
-# ──────────────────────────────────────────────
-# Шаг 0: старт
-# ──────────────────────────────────────────────
 
 @router.message(Command("submit"))
 @router.message(F.text == "💡 Подать ESG-идею")
@@ -109,11 +87,6 @@ async def submit_start(message: Message, state: FSMContext) -> None:
         "Форму можно остановить командой /cancel или кнопкой ниже.",
         reply_markup=cancel_keyboard(),
     )
-
-
-# ──────────────────────────────────────────────
-# Шаг 1: название
-# ──────────────────────────────────────────────
 
 @router.message(IdeaForm.title)
 async def submit_title(message: Message, state: FSMContext) -> None:
@@ -129,11 +102,6 @@ async def submit_title(message: Message, state: FSMContext) -> None:
     await state.set_state(IdeaForm.category)
     await message.answer("Шаг 2/6 — Выберите ESG-категорию:", reply_markup=cancel_keyboard())
     await message.answer("Категории:", reply_markup=category_keyboard())
-
-
-# ──────────────────────────────────────────────
-# Шаг 2: категория
-# ──────────────────────────────────────────────
 
 @router.callback_query(IdeaForm.category, F.data.startswith("category:"))
 async def submit_category(callback: CallbackQuery, state: FSMContext) -> None:
@@ -161,10 +129,6 @@ async def category_text_blocked(message: Message) -> None:
     await message.answer("Выберите категорию кнопкой выше или отмените форму через /cancel.")
 
 
-# ──────────────────────────────────────────────
-# Шаг 3: проблема
-# ──────────────────────────────────────────────
-
 @router.message(IdeaForm.problem)
 async def submit_problem(message: Message, state: FSMContext) -> None:
     if not message.text or len(message.text.strip()) < 20:
@@ -172,11 +136,6 @@ async def submit_problem(message: Message, state: FSMContext) -> None:
         return
     await state.update_data(problem=message.text.strip())
     await finish_or_edit(message, state, IdeaForm.solution, "Шаг 4/6 — Опишите предлагаемое решение.")
-
-
-# ──────────────────────────────────────────────
-# Шаг 4: решение
-# ──────────────────────────────────────────────
 
 @router.message(IdeaForm.solution)
 async def submit_solution(message: Message, state: FSMContext) -> None:
@@ -187,10 +146,6 @@ async def submit_solution(message: Message, state: FSMContext) -> None:
     await finish_or_edit(message, state, IdeaForm.impact, "Шаг 5/6 — Какой измеримый ESG-эффект вы ожидаете?")
 
 
-# ──────────────────────────────────────────────
-# Шаг 5: эффект
-# ──────────────────────────────────────────────
-
 @router.message(IdeaForm.impact)
 async def submit_impact(message: Message, state: FSMContext) -> None:
     if not message.text or len(message.text.strip()) < 10:
@@ -200,10 +155,6 @@ async def submit_impact(message: Message, state: FSMContext) -> None:
     await finish_or_edit(message, state, IdeaForm.resources, "Шаг 6/6 — Какие ресурсы или партнёры нужны?")
 
 
-# ──────────────────────────────────────────────
-# Шаг 6: ресурсы
-# ──────────────────────────────────────────────
-
 @router.message(IdeaForm.resources)
 async def submit_resources(message: Message, state: FSMContext) -> None:
     if not message.text or len(message.text.strip()) < 5:
@@ -211,11 +162,6 @@ async def submit_resources(message: Message, state: FSMContext) -> None:
         return
     await state.update_data(resources=message.text.strip())
     await show_review(message, state)
-
-
-# ──────────────────────────────────────────────
-# Превью и редактирование
-# ──────────────────────────────────────────────
 
 @router.message(IdeaForm.review)
 async def review_text_blocked(message: Message) -> None:
@@ -246,10 +192,6 @@ async def edit_field(callback: CallbackQuery, state: FSMContext) -> None:
             await callback.message.answer(FIELD_PROMPTS[field], reply_markup=cancel_keyboard())
     await callback.answer()
 
-
-# ──────────────────────────────────────────────
-# Подтверждение / финальная отмена
-# ──────────────────────────────────────────────
 
 @router.callback_query(IdeaForm.review, F.data == "submit:confirm")
 async def confirm_submission(callback: CallbackQuery, state: FSMContext) -> None:
